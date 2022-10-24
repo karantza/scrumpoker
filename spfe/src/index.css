@@ -1,0 +1,352 @@
+*,
+*:before,
+*:after {
+  box-sizing: border-box;
+
+  --spacing: 12px;
+
+  --c-primary: #c00014;
+  --c-on-primary: #ffffff;
+  --c-primary-container: #ffdad6;
+  --c-on-primary-container: #410002;
+
+  --c-secondary: #0157cc;
+  --c-on-secondary: #ffffff;
+  --c-secondary-container: #d9e2ff;
+  --c-on-secondary-container: #001946;
+
+  --c-background: #f6feff;
+  --c-on-background: #001f24;
+  --c-surface: #f5ddda;
+  --c-on-surface: #534341;
+  --c-outline: #857371;
+  --c-shadow: rgba(0, 0, 0, 0.3);
+}
+
+@media (prefers-color-scheme: dark) {
+  * {
+    --c-primary: #ffb4ab;
+    --c-on-primary: #690006;
+    --c-primary-container: #93000c;
+    --c-on-primary-container: #ffdad6;
+
+    --c-secondary: #b1c6ff;
+    --c-on-secondary: #002c70;
+    --c-secondary-container: #00419d;
+    --c-on-secondary-container: #d9e2ff;
+
+    --c-background: #201a19;
+    --c-on-background: #ede0de;
+    --c-surface: #201a19;
+    --c-on-surface: #ede0de;
+    --c-outline: #a08c8a;
+    --c-shadow: rgba(255, 255, 255, 0.3);
+  }
+}
+
+body {
+  margin: 0;
+  font-family: "Open Sans", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  background-color: var(--c-background);
+  color: var(--c-on-background);
+
+  /* display: flex;
+  justify-content: center;
+  align-items: stretch;
+  width: 100%; */
+}
+
+h1 {
+  margin: 0;
+  font-family: Poppins, sans-serif;
+}
+
+h2 {
+  font-family: Poppins, sans-serif;
+  margin: 0;
+}
+
+table {
+  width: 100%;
+  margin: var(--spacing);
+}
+
+a {
+  font-family: Poppins, sans-serif;
+  text-decoration: none;
+  transition: 50ms filter linear;
+  align-self: flex-start;
+}
+a:link {
+  color: inherit;
+}
+a:visited {
+  color: inherit;
+}
+a:hover {
+  filter: saturate(70%) brightness(150%);
+}
+a:active {
+  filter: brightness(80%);
+}
+
+button:hover {
+  filter: saturate(70%) brightness(150%);
+}
+button:active {
+  filter: brightness(80%);
+}
+
+input[type="text"] {
+  font-family: "Open Sans", sans-serif;
+
+  background-color: var(--c-background);
+  color: var(--c-on-background);
+
+  padding: 4px;
+  border-radius: 4px 4px 0 0;
+  padding: 8px;
+  border: none;
+  border-width: 1px;
+  border-bottom-style: solid;
+  border-color: var(--c-outline);
+}
+
+.main {
+  margin-top: var(--spacing);
+  margin-left: auto;
+  margin-right: auto;
+
+  max-width: 600px;
+  min-width: 200px;
+
+  padding: var(--spacing);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--spacing);
+}
+
+.container {
+  padding: var(--spacing);
+  border-radius: var(--spacing);
+  display: flex;
+  align-items: stretch;
+  gap: var(--spacing);
+  flex-grow: 1;
+}
+
+.header {
+  background-color: var(--c-surface);
+  color: var(--c-on-surface);
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing);
+}
+
+.container.primary {
+  background-color: var(--c-primary-container);
+  color: var(--c-on-primary-container);
+}
+
+.container.secondary {
+  background-color: var(--c-secondary-container);
+  color: var(--c-on-secondary-container);
+}
+
+.container.column {
+  flex-direction: column;
+}
+
+.button {
+  font-family: Poppins, sans-serif;
+  padding: var(--spacing);
+  border-radius: 999px;
+  flex-grow: 0;
+  border: none;
+
+  text-align: center;
+  font-size: 12pt;
+
+  transition: all 100ms linear;
+  box-shadow: 0px 1px 2px var(--c-shadow);
+
+  background-color: var(--c-primary-container);
+  color: var(--c-on-primary-container);
+}
+
+.button.fullWidth {
+  width: 100%;
+}
+
+.button:hover {
+  box-shadow: 0px 2px 4px var(--c-shadow);
+}
+
+.button:active {
+  box-shadow: none;
+}
+
+.button.primary {
+  background-color: var(--c-primary);
+  color: var(--c-on-primary);
+}
+
+.button.secondary {
+  background-color: var(--c-secondary);
+  color: var(--c-on-secondary);
+}
+
+.pointContainer {
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
+  gap: 4px;
+}
+
+.pointContainer .divider {
+  width: 1px;
+  height: 30px;
+  align-self: center;
+  background-color: var(--c-outline);
+}
+
+@media only screen and (max-device-width: 480px) {
+  #title {
+    display: none;
+  }
+
+  .pointContainer {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: auto;
+    grid-row-gap: 12px;
+  }
+
+  .pointContainer .divider {
+    display: none;
+  }
+}
+
+@keyframes point-color-mix {
+  0% {
+    background-color: hsl(120, 70%, 80%);
+  }
+  100% {
+    background-color: hsl(00, 80%, 70%);
+  }
+}
+
+.pointCard {
+  font-family: Poppins, sans-serif;
+
+  font-size: 18pt;
+
+  width: 60px;
+  height: 60px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 50%;
+
+  color: rgba(0, 0, 0, 0.7);
+
+  animation: point-color-mix 1s linear forwards paused;
+  animation-delay: calc((0 - var(--vote)) * 0.1s);
+
+  border-radius: var(--spacing);
+
+  border-width: 0px;
+  border-style: solid;
+  border-color: var(--c-primary);
+
+  transition: all 100ms linear;
+  box-shadow: 0px 1px 2px var(--c-shadow);
+}
+
+.pointCard.button {
+  cursor: pointer;
+}
+
+.pointCard.zero {
+  animation: none;
+  background-color: hsl(220, 60%, 90%);
+}
+.pointCard.max {
+  animation: none;
+  color: rgba(255, 255, 255, 0.7);
+  background-color: hsl(0, 100%, 60%);
+}
+
+.pointCard.button:hover {
+  filter: brightness(130%);
+  box-shadow: 0px 2px 4px var(--c-shadow);
+}
+.pointCard.button:active {
+  filter: brightness(80%);
+  box-shadow: none;
+}
+
+.pointCard.button.disabled {
+  filter: saturate(0%) brightness(100%);
+  opacity: 50%;
+  cursor: auto;
+}
+.pointCard.button.selected {
+  border-width: 3px;
+  filter: brightness(130%);
+
+}
+
+.cardRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px;
+  padding-left: 12px;
+  border-radius: calc(4px + var(--spacing));
+  width: 100%;
+
+  font-size: 14pt;
+
+  border-style: solid;
+  border-width: 2;
+  border-color: transparent;
+}
+
+.cardRow.max {
+  border-color: hsl(00, 80%, 50%);
+}
+.cardRow.min {
+  border-color: hsl(120, 70%, 40%);
+}
+
+.pointCard.waiting {
+  animation: none;
+  outline-width: 2px;
+  outline-color: var(--c-outline);
+  border: none;
+  outline-style: dashed;
+  background-color: transparent;
+}
+
+.pointCard.played {
+  background-image: url(./ar-logo-color.png);
+
+  animation: none;
+  outline-width: 2px;
+  outline-color: var(--c-outline);
+  outline-style: solid;
+  border: none;
+  background-color: var(--c-background);
+}
