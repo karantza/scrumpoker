@@ -1,6 +1,5 @@
 import { produce } from "immer";
 import React from "react";
-import ReconnectingEventSource from 'reconnecting-eventsource'
 
 import Header from "./Header";
 import useRobustStream from "./robustStream";
@@ -14,7 +13,7 @@ type RoomList = {
 function Lobby() {
   const [rooms, setRooms] = React.useState<RoomList>({});
   
-  const setupStream = React.useCallback((sse: ReconnectingEventSource) => {
+  const setupStream = React.useCallback((sse: EventSource) => {
   
     sse.addEventListener("room", (e) => {
       const room = JSON.parse(e.data);

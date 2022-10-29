@@ -7239,11 +7239,6 @@ readdirp@~3.6.0:
   dependencies:
     picomatch "^2.2.1"
 
-reconnecting-eventsource@^1.5.2:
-  version "1.5.2"
-  resolved "https://registry.npmjs.org/reconnecting-eventsource/-/reconnecting-eventsource-1.5.2.tgz"
-  integrity sha512-8XQETFzf/W06Pl6njey8Jmw7Zyi6lWOAfZTrSwqBZRhb3+m50DFIap0Hgn4nOHBmh1T6wJpP0M5BYyX7OMf/QA==
-
 recursive-readdir@^2.2.2:
   version "2.2.2"
   resolved "https://registry.npmjs.org/recursive-readdir/-/recursive-readdir-2.2.2.tgz"

@@ -1,204 +1,219 @@
-import { produce } from "immer";
-import React from "react";
-import Confetti from "react-dom-confetti";
-import { useParams } from "react-router-dom";
-import ReconnectingEventSource from "reconnecting-eventsource";
+import { produce } from 'immer'
+import React from 'react'
+import Confetti from 'react-dom-confetti'
+import { useParams } from 'react-router-dom'
 
-import Header from "./Header";
-import logo from "./ar-logo-color.png";
-import useRobustStream from "./robustStream";
+import Header from './Header'
+import logo from './ar-logo-color.png'
+import useRobustStream from './robustStream'
 
 interface Vote {
-  value: number;
-  star: boolean;
+  value: number
+  star: boolean
 }
 
 interface RoomUserData {
-  name: string;
-  current_vote?: Vote;
+  name: string
+  current_vote?: Vote
 }
 
 interface RoomData {
-  user_data: { [userid: string]: RoomUserData };
-  revealed: boolean;
+  user_data: { [userid: string]: RoomUserData }
+  revealed: boolean
 }
 
 function Room() {
-  let urlParams = useParams();
-  const roomId = urlParams.roomId;
+  let urlParams = useParams()
+  const roomId = urlParams.roomId
+  const myId = React.useRef(null)
 
-  const [myVote, setMyVote] = React.useState<Vote | null>(null);
+  const [myVote, setMyVote] = React.useState<Vote | null>(null)
   const [room, setRoom] = React.useState<RoomData>({
     user_data: {},
     revealed: false,
-  });
+  })
 
-  const setupStream = React.useCallback((sse: ReconnectingEventSource) => {
-    
-    // Stream events:
-    // vote: user, vote
-    // revealed: revealed
-    // name: user, name
-    // join: user, name
-    // part: user
-    // ping: ???
-
-    sse.addEventListener("ping", async (e) => {
-      const payload = JSON.parse(e.data);
-
+  React.useEffect(() => {
+    console.log('starting keepalive')
+    const keepaliveInterval = window.setInterval(async () => {
       await fetch(`/r/${roomId}/keepalive`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-    });
-    sse.addEventListener("join", (e) => {
-      console.log(`got stream event 'join', data ${e.data}`);
-      const { user, name } = JSON.parse(e.data) as {
-        user: string;
-        name: string;
-      };
+        method: 'POST',
+      })
+    }, 10000) as number
+    return () => {
+      console.log('stopping keepalive')
+      window.clearInterval(keepaliveInterval)
+    }
+  })
 
-      setRoom(
-        produce((room) => {
-          room.user_data[user] = { name };
-        })
-      );
-    });
+  const setupStream = React.useCallback(
+    (sse: EventSource) => {
+      // Stream events:
+      // vote: user, vote
+      // revealed: revealed
+      // name: user, name
+      // join: user, name
+      // part: user
+      // ping: ???
 
-    sse.addEventListener("part", (e) => {
-      console.log(`got stream event 'part', data ${e.data}`);
-      const { user } = JSON.parse(e.data) as { user: string };
+      sse.addEventListener('you', async (e) => {
+        const payload = JSON.parse(e.data)
+        myId.current = payload['user']
+      })
 
-      setRoom(
-        produce((room) => {
-          delete room.user_data[user];
-        })
-      );
-    });
+      sse.addEventListener('join', (e) => {
+        console.log(`got stream event 'join', data ${e.data}`)
+        const { user, name } = JSON.parse(e.data) as {
+          user: string
+          name: string
+        }
 
-    sse.addEventListener("name", (e) => {
-      console.log(`got stream event 'name', data ${e.data}`);
-      const { user, name } = JSON.parse(e.data) as {
-        user: string;
-        name: string;
-      };
+        setRoom(
+          produce((room) => {
+            room.user_data[user] = { name }
+          }),
+        )
+      })
 
-      setRoom(
-        produce((room) => {
-          room.user_data[user].name = name;
-        })
-      );
-    });
+      sse.addEventListener('part', (e) => {
+        console.log(`got stream event 'part', data ${e.data}`)
+        const { user } = JSON.parse(e.data) as { user: string }
 
-    sse.addEventListener("revealed", (e) => {
-      console.log(`got stream event 'revealed', data ${e.data}`);
-      const { revealed } = JSON.parse(e.data) as { revealed: boolean };
+        setRoom(
+          produce((room) => {
+            delete room.user_data[user]
+          }),
+        )
+      })
 
-      if (!revealed) {
-        setMyVote(null); // Reset local vote choice when the room is reset
-      }
+      sse.addEventListener('name', (e) => {
+        console.log(`got stream event 'name', data ${e.data}`)
+        const { user, name } = JSON.parse(e.data) as {
+          user: string
+          name: string
+        }
 
-      setRoom(
-        produce((room) => {
-          room.revealed = revealed;
-        })
-      );
-    });
+        setRoom(
+          produce((room) => {
+            room.user_data[user].name = name
+          }),
+        )
+      })
 
-    sse.addEventListener("vote", (e) => {
-      console.log(`got stream event 'vote', data ${e.data}`);
-      const { user, vote } = JSON.parse(e.data) as { user: string; vote: Vote };
+      sse.addEventListener('revealed', (e) => {
+        console.log(`got stream event 'revealed', data ${e.data}`)
+        const { revealed } = JSON.parse(e.data) as { revealed: boolean }
 
-      setRoom(
-        produce((room) => {
-          room.user_data[user].current_vote = vote;
-        })
-      );
-    });
+        if (!revealed) {
+          setMyVote(null) // Reset local vote choice when the room is reset
+        }
 
-  }, [setRoom, roomId]);
+        setRoom(
+          produce((room) => {
+            room.revealed = revealed
+          }),
+        )
+      })
 
+      sse.addEventListener('vote', (e) => {
+        console.log(`got stream event 'vote', data ${e.data}`)
+        const { user, vote } = JSON.parse(e.data) as {
+          user: string
+          vote: Vote
+        }
+
+        if (user == myId.current && vote != myVote) {
+          // We're getting a vote update from another instance I guess?
+          setMyVote(vote)
+        }
+
+        setRoom(
+          produce((room) => {
+            room.user_data[user].current_vote = vote
+          }),
+        )
+      })
+    },
+    [setRoom, roomId],
+  )
 
   useRobustStream(`/r/${roomId}/stream`, setupStream)
-  
+
   async function voteFor(value: number) {
     const vote: Vote = {
       value,
       star: false,
-    };
+    }
 
-    setMyVote(vote);
+    setMyVote(vote)
 
     await fetch(`/r/${roomId}/vote`, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify(vote),
-    });
+    })
   }
 
   async function setReveal(revealed: boolean) {
-    await fetch(`/r/${roomId}/${revealed ? "reveal" : "reset"}`, {
-      method: "POST",
-    });
+    await fetch(`/r/${roomId}/${revealed ? 'reveal' : 'reset'}`, {
+      method: 'POST',
+    })
   }
 
   function textForValue(x: number | undefined) {
     if (x === 0) {
-      return "?";
+      return '?'
     } else if (x === undefined) {
-      return "-";
+      return '-'
     } else if (x === 11) {
-      return ">10";
+      return '>10'
     } else if (x === 0.5) {
-      return "½";
+      return '½'
     }
-    return x.toString();
+    return x.toString()
   }
 
   const sortedUsers = Object.keys(room.user_data).sort((a, b) =>
-    room.user_data[a].name.localeCompare(room.user_data[b].name)
-  );
+    room.user_data[a].name.localeCompare(room.user_data[b].name),
+  )
 
   const allVoted = Object.values(room.user_data).every(
-    (x) => x.current_vote?.value !== undefined
-  );
+    (x) => x.current_vote?.value !== undefined,
+  )
 
   const validVoteValues = Object.values(room.user_data)
     .map((x) => x.current_vote?.value || 0)
-    .filter((x) => x > 0);
-  const maxVote = Math.max(...validVoteValues);
-  const minVote = Math.min(...validVoteValues);
+    .filter((x) => x > 0)
+  const maxVote = Math.max(...validVoteValues)
+  const minVote = Math.min(...validVoteValues)
 
   const confettiOn =
     room.revealed &&
     minVote === maxVote &&
     minVote > 0 &&
-    validVoteValues.length > 1;
+    validVoteValues.length > 1
 
   const voteButton = (value: number) => {
-    const style = { "--vote": value } as React.CSSProperties;
+    const style = { '--vote': value } as React.CSSProperties
     return (
       <div
         className={`pointCard button ${
-          room.revealed ? "disabled" : "enabled"
-        } ${value === myVote?.value ? "selected" : "unselected"} ${
-          value === 0 ? "zero" : value === 11 ? "max" : ""
+          room.revealed ? 'disabled' : 'enabled'
+        } ${value === myVote?.value ? 'selected' : 'unselected'} ${
+          value === 0 ? 'zero' : value === 11 ? 'max' : ''
         }`}
         style={style}
-        key={`vote${value.toString().replace(".", "_")}`}
+        key={`vote${value.toString().replace('.', '_')}`}
         onClick={() => {
-          if (!room.revealed) voteFor(value);
+          if (!room.revealed) voteFor(value)
         }}
       >
         {textForValue(value)}
       </div>
-    );
-  };
+    )
+  }
 
   return (
     <>
@@ -229,14 +244,14 @@ function Room() {
             </button>
           ) : (
             <button
-              className={`button fullWidth ${allVoted ? "primary" : ""}`}
+              className={`button fullWidth ${allVoted ? 'primary' : ''}`}
               onClick={() => setReveal(true)}
             >
               Reveal Votes
             </button>
           )}
         </div>
-        <div style={{ alignSelf: "center", width: 0, height: 0 }}>
+        <div style={{ alignSelf: 'center', width: 0, height: 0 }}>
           <Confetti
             active={confettiOn}
             config={{
@@ -249,17 +264,17 @@ function Room() {
         </div>
         <div className="container secondary column">
           {sortedUsers.map((userid) => {
-            const userValue = room.user_data[userid].current_vote?.value;
+            const userValue = room.user_data[userid].current_vote?.value
             return (
               <div
                 className={`cardRow ${
                   minVote !== maxVote && room.revealed
                     ? userValue === minVote
-                      ? "min"
+                      ? 'min'
                       : userValue === maxVote
-                      ? "max"
-                      : ""
-                    : ""
+                      ? 'max'
+                      : ''
+                    : ''
                 }`}
                 key={userid}
               >
@@ -269,33 +284,33 @@ function Room() {
                   className={`pointCard ${
                     !room.revealed
                       ? userValue !== undefined
-                        ? "played"
-                        : "waiting"
-                      : ""
+                        ? 'played'
+                        : 'waiting'
+                      : ''
                   } ${
                     room.revealed
-                      ? (userValue === 0 || userValue === undefined)
-                        ? "zero"
+                      ? userValue === 0 || userValue === undefined
+                        ? 'zero'
                         : userValue === 11
-                        ? "max"
-                        : ""
-                      : ""
+                        ? 'max'
+                        : ''
+                      : ''
                   }`}
                   style={
                     {
-                      "--vote": room.revealed ? userValue : 0,
+                      '--vote': room.revealed ? userValue : 0,
                     } as React.CSSProperties
                   }
                 >
-                  {room.revealed ? textForValue(userValue) : ""}
+                  {room.revealed ? textForValue(userValue) : ''}
                 </div>
               </div>
-            );
+            )
           })}
         </div>
       </div>
     </>
-  );
+  )
 }
 
-export default Room;
+export default Room

@@ -4,14 +4,19 @@ import queue
 import json
 import random
 import string
+import logging
 
 from uuid import uuid4
 from flask import Flask, abort, request, session, send_file, stream_with_context
 from flask.wrappers import Response
+from flask_cors import CORS, cross_origin
+from datetime import datetime, timedelta
 
 from wonderwords import RandomWord
 
 app = Flask(__name__)
+CORS(app)
+
 
 app.secret_key = b"!\x9a\x89\x97L|\x8e\x105\t\xfd)\xdc<M\xbd"
 app.static_folder = "static/static"
@@ -19,9 +24,10 @@ app.static_folder = "static/static"
 # No cacheing at all for API endpoints.
 @app.after_request
 def add_header(response):
-    # response.cache_control.no_store = True
-    if "Cache-Control" not in response.headers:
-        response.headers["Cache-Control"] = "no-transform"
+    response.headers["Cache-Control"] = "no-transform, no-cache"
+    response.headers["Content-Type"] = "text/event-stream"
+    # response.headers["Connection"] = "keep-alive"
+
     return response
 
 
@@ -66,8 +72,7 @@ class RoomUserData(typing.TypedDict):
     name: str
     current_vote: Vote | None
     open_streams: int
-    last_ping: int
-    last_keepalive: int
+    last_ping: datetime
 
 
 class RoomData(typing.TypedDict):
@@ -97,14 +102,18 @@ def notify_room_updated(room_id: str):
     """Broadcast a room changed message to the index"""
     room_list_announcer.announce(*msg_for_room(room_id))
 
+
 def random_name():
 
     r = RandomWord()
-    starts_with=random.choice(string.ascii_lowercase)
-    adj = r.word(starts_with=starts_with, include_parts_of_speech=["adjectives"]).title()
+    starts_with = random.choice(string.ascii_lowercase)
+    adj = r.word(
+        starts_with=starts_with, include_parts_of_speech=["adjectives"]
+    ).title()
     nou = r.word(starts_with=starts_with, include_parts_of_speech=["nouns"]).title()
 
-    return f'{adj} {nou}'
+    return f"{adj} {nou}"
+
 
 def make_session():
     """Assigns us an id and name in the client session."""
@@ -142,8 +151,7 @@ def join_room(room_id: str):
         "name": session["name"],
         "current_vote": None,
         "open_streams": 0,
-        "last_ping": 0,
-        "last_keepalive": 0,
+        "last_ping": datetime.now(),
     }
     rooms[room_id]["messages"].announce(
         "join", {"user": user_id, "name": session["name"]}
@@ -176,7 +184,7 @@ def post_keepalive(room_id: str):
 
     room = get_room(room_id)
     user_id = session["userid"]
-    room["user_data"][user_id]["last_keepalive"] = int(request.json["x"])
+    room["user_data"][user_id]["last_ping"] = datetime.now()
 
     return "ok", 200
 
@@ -193,44 +201,46 @@ def get_stream(room_id: str):
 
     room = get_room(room_id)
     user_id = session["userid"]
+    username = session["name"]
 
     def stream():
         messages = room["messages"].listen()
         room["user_data"][user_id]["open_streams"] += 1
-        room["user_data"][user_id]["last_ping"] = 0
         print(
-            f"user {user_id} opens stream #"
+            f"user {user_id} {username} opens stream #"
             + str(room["user_data"][user_id]["open_streams"])
         )
         try:
             # on initial connect, send all user joins messages, sets votes, and sets mode.
+            yield event_str("you", {"user": user_id})
+
             yield event_str("revealed", {"revealed": room["revealed"]})
             for userid, user in room["user_data"].items():
                 yield event_str("join", {"user": userid, "name": user["name"]})
                 yield event_str("vote", {"user": userid, "vote": user["current_vote"]})
 
-            while True:
+            # This connection should forcibly disconnect after ~1 minute if it hasn't heard a ping.
+            while datetime.now() < room["user_data"][user_id]["last_ping"] + timedelta(
+                seconds=60
+            ):
                 try:
-                    msg = messages.get(block=True, timeout=10)
+                    msg = messages.get(block=True, timeout=1)
                     yield msg
                 except queue.Empty:
-                    # just check if we're alive
-                    if (
-                        room["user_data"][user_id]["last_keepalive"]
-                        != room["user_data"][user_id]["last_ping"]
-                    ):
-                        raise
-                    room["user_data"][user_id]["last_ping"] += 1
-                    yield event_str(
-                        "ping", {"x": room["user_data"][user_id]["last_ping"]}
-                    )
-        except:
-            pass  # Any exception just exits the stream
+                    yield event_str("keepalive", {})
+
+                lastping = datetime.now() - room["user_data"][user_id]["last_ping"]
+                # print(f"Last ping for {username} was {lastping.total_seconds()}s ago")
+
+        except GeneratorExit:
+            print(f"user {user_id} {username} exited gracefully")
+            pass
+
         finally:
             room["user_data"][user_id]["open_streams"] -= 1
 
             print(
-                f"user {user_id} closes stream, remaining: "
+                f"user {user_id} {username} closes stream, remaining: "
                 + str(room["user_data"][user_id]["open_streams"])
             )
 
@@ -313,6 +323,8 @@ def post_reset(room_id: str):
 def name():
     """Get or set our name"""
 
+    if "userid" not in session:
+        abort(400, "Get a session first")
     user_id = session["userid"]
 
     if request.method == "POST":
@@ -354,4 +366,4 @@ def get_room_page(room_id: str):
 
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=9991)
+    app.run(host="0.0.0.0", port=9991, debug=False)

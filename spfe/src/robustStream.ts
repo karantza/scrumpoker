@@ -1,9 +1,8 @@
 import React from "react";
-import ReconnectingEventSource from "reconnecting-eventsource";
 
 export default function useRobustStream(
   url: string,
-  func: (sse: ReconnectingEventSource) => void
+  func: (sse: EventSource) => void
 ) {
   const streamConnected = React.useRef(false);
   const connectStream = React.useCallback(() => {
@@ -15,16 +14,19 @@ export default function useRobustStream(
     console.log("connecting to stream");
     streamConnected.current = true;
 
-    const sse = new ReconnectingEventSource(url);
+    const sse = new EventSource(url, { withCredentials: true });
+
+    const closeSSE = () => {
+      console.log('Close sse event handler')
+      streamConnected.current = false;
+      sse.close()
+    }
+
+    window.addEventListener('beforeunload', closeSSE);
 
     sse.onerror = (e) => {
       console.error("stream error");
       console.error(`${e}`);
-      if (sse.readyState !== 1) {
-        sse.close()
-        streamConnected.current = false;
-        connectStream(); // try to reconnect
-      }
     };
 
     func(sse);
@@ -33,6 +35,7 @@ export default function useRobustStream(
       console.log("closing stream");
       streamConnected.current = false;
       sse.close();
+      window.removeEventListener('beforeunload', closeSSE);
     };
   }, [url, func]);
 
