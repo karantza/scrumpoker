@@ -9,26 +9,21 @@ import logging
 from uuid import uuid4
 from flask import Flask, abort, request, session, send_file, stream_with_context
 from flask.wrappers import Response
-from flask_cors import CORS, cross_origin
 from datetime import datetime, timedelta
 
 from wonderwords import RandomWord
 
 app = Flask(__name__)
-CORS(app)
-
 
 app.secret_key = b"!\x9a\x89\x97L|\x8e\x105\t\xfd)\xdc<M\xbd"
 app.static_folder = "static/static"
 
 # No cacheing at all for API endpoints.
-@app.after_request
-def add_header(response):
-    response.headers["Cache-Control"] = "no-transform, no-cache"
-    response.headers["Content-Type"] = "text/event-stream"
-    # response.headers["Connection"] = "keep-alive"
-
-    return response
+def stream_headers():
+    return {
+        "Cache-Control": "no-transform, no-cache",
+        "Content-Type": "text/event-stream"
+    }
 
 
 def event_str(event: str, data: dict):
@@ -248,7 +243,7 @@ def get_stream(room_id: str):
                 # We were the last connection. Leave the room.
                 leave_room(room_id, user_id)
 
-    return Response(stream_with_context(stream()), mimetype="text/event-stream")
+    return Response(stream_with_context(stream()), headers=stream_headers())
 
 
 @app.route("/stream", methods=["GET"])
@@ -270,7 +265,7 @@ def get_all_rooms():
         except:
             pass  # Any exception just exits the stream
 
-    return Response(stream_with_context(stream()), mimetype="text/event-stream")
+    return Response(stream_with_context(stream()), headers=stream_headers())
 
 
 @app.route("/r/<string:room_id>/vote", methods=["POST"])
@@ -325,6 +320,7 @@ def name():
 
     if "userid" not in session:
         abort(400, "Get a session first")
+        
     user_id = session["userid"]
 
     if request.method == "POST":
